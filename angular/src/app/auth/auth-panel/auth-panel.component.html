@@ -1,0 +1,11 @@
+<ng-container *ngIf="(authState$ | async) as state">
+    <button (click)="login()" *ngIf="state?.isAuthenticated === false else logOut">
+        <span> Log in</span>
+    </button>
+    <ng-template #logOut>
+        <span *ngIf="state?.userData as data">Hi {{data?.name}}</span>
+        <button (click)="logout()">
+            <span> Log out</span>
+        </button>
+    </ng-template>
+</ng-container>
