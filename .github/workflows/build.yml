@@ -1,0 +1,51 @@
+name: Build Examples
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'angular/**'
+      - 'client_credentials_aspnetcore/**'
+      - '!**.md'
+      - .github/workflows/**
+
+jobs:
+  build-angular:
+    runs-on: xena-k8s-runners
+    defaults:
+      run:
+        working-directory: angular
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+  build-dotnet:
+    runs-on: xena-k8s-runners
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4.2.0
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build API
+        run: dotnet build client_credentials_aspnetcore/api/api.csproj -c Release
+
+      - name: Build Client
+        run: dotnet build client_credentials_aspnetcore/client/client.csproj -c Release
+
