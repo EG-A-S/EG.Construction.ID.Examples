@@ -1,0 +1,73 @@
+name: Build Examples
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'angular/**'
+      - 'client_credentials_aspnetcore/**'
+      - '!**.md'
+      - .github/workflows/**
+
+jobs:
+  build-angular:
+    runs-on: xena-k8s-runners
+    defaults:
+      run:
+        working-directory: angular
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+  build-dotnet:
+    runs-on: xena-k8s-runners
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4.2.0
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build API
+        run: dotnet build client_credentials_aspnetcore/api/api.csproj -c Release
+
+      - name: Build Client
+        run: dotnet build client_credentials_aspnetcore/client/client.csproj -c Release
+
+  build-summary:
+    needs: [build-angular, build-dotnet]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Build Summary
+        run: |
+          echo "# EG.Construction.ID.Examples Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Angular Build | ${{ needs.build-angular.result == 'success' && 'Success' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| .NET Build | ${{ needs.build-dotnet.result == 'success' && 'Success' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Send notification to Microsoft Teams
+        if: always()
+        uses: EG-A-S/Xena-Actions/.github/actions/teams-notification@main
+        with:
+          title: "EG.Construction.ID.Examples Build"
+          status: ${{ needs.build-angular.result == 'success' && needs.build-dotnet.result == 'success' && 'success' || 'failure' }}
+          teams-webhook-url: ${{ secrets.XENA_TEAMS_WEBHOOK }}
